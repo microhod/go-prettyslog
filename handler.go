@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"slices"
 	"strings"
-	"text/template"
 
 	"github.com/microhod/go-prettyslog/colour"
 )
@@ -29,8 +28,11 @@ type HandlerOptions struct {
 	LevelColours    map[slog.Level]colour.Colours
 	TimestampFormat string
 
-	Template      LogTemplate
-	TemplateFuncs template.FuncMap
+	RecordWriter RecordWriter
+}
+
+type RecordWriter interface {
+	WriteRecord(w io.Writer, record Record) error
 }
 
 type HandlerOptionsFunc func(opts *HandlerOptions)
@@ -47,9 +49,9 @@ var defaultHandlerOptions = HandlerOptions{
 	},
 	TimestampFormat: "2006-01-02T15:04:05.000Z",
 
-	Template: LogTemplate{
+	RecordWriter: TemplateRecordWriter{
 		Name:          "prettyslog-log-template",
-		Template:      LogTemplateMultilineColourised,
+		Template:      TemplateMultilineColourised,
 		TemplateFuncs: defaultTemplateFuncs,
 	},
 }
@@ -106,7 +108,7 @@ func (h *Handler) withGroupPrefix(name string) string {
 func (h *Handler) Handle(ctx context.Context, record slog.Record) error {
 	// use a buffer to ensure we only ever write a full log line at once to the handler's writer
 	buffer := new(bytes.Buffer)
-	err := h.options.Template.Execute(buffer, h.recordFromSlogRecord(record))
+	err := h.options.RecordWriter.WriteRecord(buffer, h.recordFromSlogRecord(record))
 	if err != nil {
 		return fmt.Errorf("failed to execute log template: %w", err)
 	}
