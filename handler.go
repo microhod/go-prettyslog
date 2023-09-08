@@ -7,8 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"runtime"
-	"slices"
-	"strings"
 
 	"github.com/microhod/go-prettyslog/colour"
 )
@@ -76,8 +74,9 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	handler := h.clone()
 	for _, attr := range attrs {
 		handler.attrs = append(handler.attrs, Attr{
-			Key:   h.withGroupPrefix(attr.Key),
+			Key:   attr.Key,
 			Value: attr.Value.String(),
+			Groups: handler.groups,
 		})
 	}
 	return handler
@@ -93,16 +92,9 @@ func (h *Handler) clone() *Handler {
 	return &Handler{
 		options: h.options,
 		w:       h.w,
-		attrs:   slices.Clip(h.attrs),
-		groups:  slices.Clip(h.groups),
+		attrs:   h.attrs,
+		groups:  h.groups,
 	}
-}
-
-func (h *Handler) withGroupPrefix(name string) string {
-	if len(h.groups) < 1 {
-		return name
-	}
-	return fmt.Sprintf("%s.%s", strings.Join(h.groups, "."), name)
 }
 
 func (h *Handler) Handle(ctx context.Context, record slog.Record) error {
@@ -124,11 +116,11 @@ type Record struct {
 	Level   string
 	Message string
 	Attrs   []Attr
-	// TODO: be able to control how groups are logged
 }
 
 type Attr struct {
 	Key, Value string
+	Groups []string
 }
 
 func (h *Handler) recordFromSlogRecord(slogRecord slog.Record) Record {
@@ -161,7 +153,7 @@ func (h *Handler) attrsFromSlogRecord(slogRecord slog.Record) []Attr {
 
 	// logger attrs
 	for _, attr := range h.attrs {
-		attrs = append(attrs, Attr{Key: attr.Key, Value: attr.Value})
+		attrs = append(attrs, attr)
 	}
 	// record attrs
 	slogRecord.Attrs(func(attr slog.Attr) bool {
@@ -169,7 +161,7 @@ func (h *Handler) attrsFromSlogRecord(slogRecord slog.Record) []Attr {
 		if attr.Equal(slog.Attr{}) {
 			return true
 		}
-		attrs = append(attrs, Attr{Key: h.withGroupPrefix(attr.Key), Value: attr.Value.String()})
+		attrs = append(attrs, Attr{Key: attr.Key, Value: attr.Value.String(), Groups: h.groups})
 		return true
 	})
 	return attrs

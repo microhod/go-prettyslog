@@ -74,14 +74,14 @@ type Colour int
 type Colours []Colour
 
 func (c Colours) Sprint(a ...any) string {
-	return c.format() + fmt.Sprint(a...) + c.unformat()
+	return c.Format() + fmt.Sprint(a...) + Unformat()
 }
 
-func (c Colours) format() string {
+func (c Colours) Format() string {
 	return fmt.Sprintf("%s[%sm", escape, c.sequence())
 }
 
-func (c Colours) unformat() string {
+func Unformat() string {
 	return fmt.Sprintf("%s[%dm", escape, Reset)
 }
 

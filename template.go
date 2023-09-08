@@ -10,9 +10,15 @@ import (
 )
 
 const (
-	TemplateMultilineColourised = `{{ levelcolour (padleft .Level 5) . }}[{{ .Time }}] {{ colour .Message 1 }}
+	TemplateMultilineColourised = `{{ levelcolour . }}{{ padleft .Level 5 }}{{ uncolour }}[{{ .Time }}] {{ colour 1 }}{{ .Message }}{{ uncolour }}
 {{- range .Attrs }}
-{{ spaces (len (padleft $.Level 5)) (len $.Time) 3 }}{{ colour .Key 30 }}{{ colour "=" 30 }}{{ colour .Value 30 }}
+	{{- printf "\n" }}
+	{{- spaces (len (padleft $.Level 5)) (len $.Time) 3 }}
+	{{- colour 30 }}
+		{{- join .Groups "." }}
+		{{- if .Groups }}.{{ end }}
+		{{- .Key }}={{ .Value }}
+	{{- uncolour }}
 {{- end }}
 `
 )
@@ -32,19 +38,25 @@ func (t TemplateRecordWriter) WriteRecord(w io.Writer, record Record) error {
 }
 
 var defaultTemplateFuncs = template.FuncMap{
-	"levelcolour": LevelColourise,
-	"colour":      Colourise,
+	"levelcolour": LevelColourStart,
+	"colour":      ColourStart,
+	"uncolour":    ColourEnd,
 	"padleft":     PadLeft,
 	"padright":    PadRight,
 	"spaces":      Spaces,
+	"join":        strings.Join,
 }
 
-func LevelColourise(value string, record Record) string {
-	return record.LevelColours.Sprint(value)
+func LevelColourStart(record Record) string {
+	return record.LevelColours.Format()
 }
 
-func Colourise(value string, colours ...colour.Colour) string {
-	return colour.Colours(colours).Sprint(value)
+func ColourStart(colours ...colour.Colour) string {
+	return colour.Colours(colours).Format()
+}
+
+func ColourEnd() string {
+	return colour.Unformat()
 }
 
 func PadLeft(value string, length int) string {
